@@ -4,22 +4,116 @@ output:
   html_document:
     keep_md: true
 ---
-
+#### By Mike Fusakio
 
 ## Loading and preprocessing the data
-
+```{r echo=TRUE}
+library(dplyr)
+library(chron)
+dataset <- read.csv("activity.csv", header = TRUE, dec = ".", sep = ",", na.strings = "NA")
+dataset$date <- as.Date(dataset$date)
+```
 
 
 ## What is mean total number of steps taken per day?
+In order to find the total number of steps taken, group the data by date then
+sum the values in the steps column while ignoring the NA value (default of aggregate function). Then plots the data in a histogram
 
+```{r echo=TRUE}
+steps <- aggregate(steps ~ date, data = dataset, FUN = sum)
+barplot(steps$steps, names.arg = steps$date, xlab = "Date", ylab = "Steps Taken", main = "Plot of Total Steps per Day")
+```
+
+What is the mean total number of steps taken per day?
+
+```{r echo = TRUE}
+mean(steps$steps)
+
+```
+What is the median total number of steps taken per day?
+
+```{r echo = TRUE}
+median(steps$steps)
+```
 
 
 ## What is the average daily activity pattern?
+Group the data by the 5 minute Interval data and then average that data
 
+```{r echo = TRUE}
+Inter <- aggregate(steps ~ interval, data = dataset, FUN = mean)
+plot(Inter, type = "l", xlab = "5 min Interval", ylab = "Ave Steps Taken", main = "Plot of Average Daily Activity Pattern")
+```
+Calculate which 5min interval has the max steps
+
+```{r echo = TRUE}
+Inter$interval[which.max(Inter$steps)]
+```
 
 
 ## Imputing missing values
+Calculate the total number of Missing Values
 
+```{r echo = TRUE}
+sum(is.na(dataset$steps))
+```
+
+Fill in the Missing Values using the average for the day.  Also adds an average of 0 to the first day which is all N/A values.
+
+```{r echo = TRUE}
+n = 1
+newrow <- data.frame(date = "2012-10-01", steps = 0)
+steps2bound <- rbind(steps, newrow)
+while(n <= nrow(dataset)) {
+  if(is.na(dataset[n,1])){
+    date2 <- dataset[n,2]
+    if(date2 %in% steps2bound){
+      steps3 <- steps2bound[which(steps2bound$date == date2), ]
+      steps3Ave <- steps3[,2]
+      dataset[n,1] <- steps3Ave
+    }  
+    n = n + 1
+  }
+  if(!is.na(dataset[n,1])) {
+    n = n + 1
+  }
+}
+
+steps <- aggregate(steps ~ date, data = dataset, FUN = sum)
+barplot(steps$steps, names.arg = steps$date, xlab = "Date", ylab = "Steps Taken", main = "Plot of Total Steps per Day \n for adjusted dataset")
+```
+
+What is the new mean for the adjusted data?
+
+```{r echo = TRUE}
+mean(steps$steps)
+```
+
+What is the new median for the adjusted data?
+
+```{r echo = TRUE}
+median(steps$steps)
+```
+
+Adjusting the dataset by replacing the NA values has had litle to no impact.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+Evaluate and add to the dataset if a date is a weekend (TRUE) or weekday (False)
+
+```{r echo = TRUE}
+datasetDay <- mutate(dataset, Day = is.weekend(date))
+```
+
+Plot the Weekend vs Weekday Data by filtering the data set based on 
+weekend vs weekday results into two new data sets. 
+
+```{r echo = TRUE}
+Weekend <- filter(datasetDay, Day == "TRUE")
+Weekday <- filter(datasetDay, Day == "FALSE")
+InterDay <- aggregate(steps ~ interval, data = Weekday, FUN = mean)
+InterEnd <- aggregate(steps ~ interval, data = Weekend, FUN = mean)
+par(mfrow = c(2,1))
+plot(InterEnd, type = "l", xlab = "5 min Interval", ylab = "Ave Steps Taken", main = "Plot of Average Weekend Activity Pattern")
+plot(InterDay, type = "l", xlab = "5 min Interval", ylab = "Ave Steps Taken", main = "Plot of Average Weekday Activity Pattern")
+```
